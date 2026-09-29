@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "settings": {
+    "studioName": "De Weert Studio",
+    "studioLocation": "Corrientes, Corrientes",
+    "payTo": "Balthasar De Weert",
+    "nextInvoiceNumber": 6,
+    "defaultHourRate": 20000,
+    "paymentInfo": ""
+  },
+  "clients": [
+    {
+      "id": "c_gonzamasmotos",
+      "name": "Gonzamasmotos",
+      "contactName": "Gonzalo Masdeu",
+      "email": "",
+      "phone": "",
+      "website": "Gonzamasmotos.com",
+      "active": true,
+      "maintenanceActive": true,
+      "maintenanceDescription": "Mantenimiento Gonzamasmotos.com",
+      "maintenanceAmount": 50000,
+      "hourRate": 20000,
+      "recurring": [
+        { "id": "r_gm_db", "description": "Base de datos Plan Pro", "quantity": 1, "unitPrice": 48275, "active": true },
+        { "id": "r_gm_mail", "description": "Proveedor de mail", "quantity": 1, "unitPrice": 28800, "active": true }
+      ],
+      "notes": "Supabase Plan Pro + Resend.",
+      "createdAt": "2026-01-01T12:00:00.000Z"
+    }
+  ],
+  "tasks": [],
+  "charges": [],
+  "invoices": [
+    {
+      "id": "inv_5",
+      "number": 5,
+      "clientId": "c_gonzamasmotos",
+      "period": "2026-08",
+      "date": "2026-09-10",
+      "items": [
+        { "description": "Base de datos Plan Pro", "quantity": 1, "unitPrice": 48275 },
+        { "description": "Proovedor de mail", "quantity": 1, "unitPrice": 28800 },
+        { "description": "Actualizacion comprobante, nuevo flujo de inicio", "quantity": 0.5, "unitPrice": 20000 },
+        { "description": "Mantenimiento Gonzamasmotos.com", "quantity": 1, "unitPrice": 50000, "link": "Gonzamasmotos.com" }
+      ],
+      "adjustments": 0,
+      "notes": "Periodo Agosto 2026",
+      "status": "emitida",
+      "chargeIds": [],
+      "client": { "name": "Gonzamasmotos", "contactName": "Gonzalo Masdeu" }
+    }
+  ]
+}

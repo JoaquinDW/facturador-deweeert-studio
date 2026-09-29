@@ -1,0 +1,15 @@
+@import "tailwindcss";
+@import "@fontsource/roboto/400.css";
+@import "@fontsource/roboto/500.css";
+@import "@fontsource/roboto/700.css";
+
+@theme {
+  --font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif;
+  --color-brand: #25318f;
+  --color-brand-dark: #1b246d;
+  --color-brand-soft: #6b63e0;
+  --color-accent: #e5157a;
+}
+
+body { @apply bg-slate-50 text-slate-800 antialiased; }
+input[type=number]::-webkit-inner-spin-button { opacity: .4; }
