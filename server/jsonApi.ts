@@ -6,7 +6,7 @@ import type { ServerResponse } from 'node:http'
 
 /**
  * Versión LOCAL de la API (solo para `npm run dev`). En Vercel se usan las funciones de /api
- * que guardan en Vercel Blob. Mismo protocolo en ambos:
+ * que guardan en Neon Postgres. Mismo protocolo en ambos:
  *  GET  /api/data   -> JSON (404 si no existe todavía), header x-etag con la versión
  *  PUT  /api/data   -> guarda; si x-etag no coincide con la versión actual responde 409
  *  POST /api/login  -> solo si definís APP_PASSWORD al correr `npm run dev`

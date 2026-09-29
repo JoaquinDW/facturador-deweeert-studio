@@ -9,8 +9,7 @@
     "noEmit": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "allowImportingTsExtensions": false,
-    "types": ["vite/client", "node"]
+    "allowImportingTsExtensions": false
   },
   "include": ["src", "server", "api", "vite.config.ts"]
 }

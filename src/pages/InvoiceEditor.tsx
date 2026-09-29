@@ -14,7 +14,7 @@ export default function InvoiceEditor() {
 
   const [clientId, setClientId] = useState(existing?.clientId ?? params.get('cliente') ?? '')
   const [period, setPeriod] = useState(existing?.period ?? params.get('periodo') ?? shiftPeriod(currentPeriod(), -1))
-  const [number, setNumber] = useState(existing?.number ?? data.settings.nextInvoiceNumber)
+  const [number, setNumber] = useState(existing?.number ?? data.clients.find((c) => c.id === (params.get('cliente') ?? ''))?.nextInvoiceNumber ?? 1)
   const [date, setDate] = useState(existing?.date ?? todayISO())
   const [items, setItems] = useState<InvoiceItem[]>(existing?.items ?? [])
   const [adjustments, setAdjustments] = useState(existing?.adjustments ?? 0)
@@ -38,7 +38,7 @@ export default function InvoiceEditor() {
   }, [period, notesTouched])
 
   const duplicate = data.invoices.find((i) => i.clientId === clientId && i.period === period && i.status !== 'anulada' && i.id !== existing?.id)
-  const numberTaken = data.invoices.some((i) => i.number === number && i.id !== existing?.id)
+  const numberTaken = data.invoices.some((i) => i.clientId === clientId && i.number === number && i.id !== existing?.id)
 
   const usedChargeIds = new Set(items.map((i) => i.chargeId).filter(Boolean))
   const otherUnbilled = useMemo(
@@ -97,7 +97,8 @@ export default function InvoiceEditor() {
         if (chargeIds.includes(ch.id)) ch.invoiceId = invId
         else if (ch.invoiceId === invId) ch.invoiceId = null
       }
-      if (number >= d.settings.nextInvoiceNumber) d.settings.nextInvoiceNumber = number + 1
+      const savedClient = d.clients.find((c) => c.id === client.id)!
+      if (number >= savedClient.nextInvoiceNumber) savedClient.nextInvoiceNumber = number + 1
     })
     nav(`/facturas/${invId}`)
   }
@@ -119,7 +120,14 @@ export default function InvoiceEditor() {
       <Card>
         <div className="grid grid-cols-4 gap-4 p-5">
           <Field label="Cliente" className="col-span-2">
-            <Select value={clientId} onChange={(e) => setClientId(e.target.value)} disabled={!!existing}>
+            <Select
+              value={clientId}
+              onChange={(e) => {
+                setClientId(e.target.value)
+                setNumber(data.clients.find((c) => c.id === e.target.value)?.nextInvoiceNumber ?? 1)
+              }}
+              disabled={!!existing}
+            >
               <option value="">Elegí un cliente…</option>
               {data.clients.filter((c) => c.active || c.id === clientId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>

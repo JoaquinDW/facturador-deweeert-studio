@@ -15,6 +15,31 @@ interface Store {
 
 const Ctx = createContext<Store | null>(null)
 
+function normalizeData(d: Data) {
+  d.tasks ??= []
+  d.charges ??= []
+  d.invoices ??= []
+  for (const task of d.tasks) {
+    const charge = d.charges.find((item) => item.id === task.chargeId || item.taskId === task.id)
+    if (charge && !task.chargeId) task.chargeId = charge.id
+    task.category ??= charge?.kind === 'desarrollo' ? 'desarrollo' : charge?.kind === 'gasto' ? 'gasto' : 'otro'
+    task.billable ??= !!charge
+    if (charge) {
+      task.billingDescription ??= charge.description
+      task.billingQuantity ??= charge.quantity
+      task.billingUnitPrice ??= charge.unitPrice
+      task.billingPeriod ??= charge.period
+    }
+  }
+  for (const client of d.clients) {
+    const highestNumber = d.invoices
+      .filter((invoice) => invoice.clientId === client.id)
+      .reduce((highest, invoice) => Math.max(highest, invoice.number), 0)
+    client.nextInvoiceNumber = Math.max(1, Math.round(client.nextInvoiceNumber ?? highestNumber + 1))
+  }
+  return d
+}
+
 function Login({ onDone }: { onDone: () => void }) {
   const [pw, setPw] = useState('')
   const [err, setErr] = useState('')
@@ -76,11 +101,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         d = await r.json()
         etag.current = r.headers.get('x-etag') ?? ''
         setAuthEnabled(r.headers.get('x-auth') === '1')
-      } else throw new Error(`Error ${r.status} al leer los datos`)
-      d.tasks ??= []
-      d.charges ??= []
-      d.invoices ??= []
-      setData(d)
+      } else {
+        const message = (await r.json().catch(() => ({}))).error
+        throw new Error(message || `Error ${r.status} al leer los datos`)
+      }
+      setData(normalizeData(d))
     } catch (e) {
       setError(String(e))
     }
@@ -162,8 +187,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const replaceAll = useCallback(
     (d: Data) => {
-      setData(d)
-      persist(d)
+      const normalized = normalizeData(d)
+      setData(normalized)
+      persist(normalized)
     },
     [persist],
   )

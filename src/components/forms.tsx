@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../store'
 import type { Charge, Client, Task } from '../types'
-import { currentPeriod, lineTotal, money, todayISO, uid } from '../utils'
+import { currentPeriod, lineTotal, money, syncTaskCharge, taskCategoryLabel, todayISO, uid } from '../utils'
 import { Button, Field, Input, Modal, NumberInput, Select, Textarea } from './ui'
 
 /* ---------------- Cliente ---------------- */
@@ -18,6 +18,7 @@ export const emptyClient = (hourRate: number): Client => ({
   maintenanceDescription: '',
   maintenanceAmount: 0,
   hourRate,
+  nextInvoiceNumber: 1,
   recurring: [],
   notes: '',
   createdAt: '',
@@ -75,6 +76,9 @@ export function ClientModal({ open, onClose, client, onSaved }: { open: boolean;
         <Field label="Teléfono"><Input value={c.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
         <Field label="Sitio web"><Input value={c.website} onChange={(e) => set('website', e.target.value)} placeholder="cliente.com" /></Field>
         <Field label="Valor hora de desarrollo"><NumberInput value={c.hourRate} onValue={(v) => set('hourRate', v)} /></Field>
+        <Field label="Próximo N.º de factura" hint="Numeración independiente para este cliente">
+          <NumberInput value={c.nextInvoiceNumber} onValue={(v) => set('nextInvoiceNumber', Math.max(1, Math.round(v)))} />
+        </Field>
       </div>
 
       <div className="rounded-xl border border-slate-200 p-4">
@@ -126,26 +130,53 @@ export function ClientModal({ open, onClose, client, onSaved }: { open: boolean;
   )
 }
 
-/* ---------------- Pendiente ---------------- */
+/* ---------------- Trabajo ---------------- */
 
 export function TaskModal({ open, onClose, task, clientId }: { open: boolean; onClose: () => void; task?: Task; clientId?: string }) {
   const { data, update } = useStore()
-  const blank = (): Task => ({ id: '', clientId: clientId ?? data.clients.find((c) => c.active)?.id ?? '', title: '', description: '', status: 'pendiente', priority: 'media', createdAt: '' })
+  const blank = (): Task => {
+    const cid = clientId ?? data.clients.find((c) => c.active)?.id ?? ''
+    const client = data.clients.find((c) => c.id === cid)
+    return {
+      id: '',
+      clientId: cid,
+      title: '',
+      description: '',
+      category: 'desarrollo',
+      status: 'pendiente',
+      priority: 'media',
+      billable: false,
+      billingDescription: '',
+      billingQuantity: 1,
+      billingUnitPrice: client?.hourRate ?? data.settings.defaultHourRate,
+      billingPeriod: currentPeriod(),
+      createdAt: '',
+    }
+  }
   const [t, setT] = useState<Task>(task ?? blank())
   useEffect(() => {
     if (open) setT(task ? { ...task } : blank())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, task, clientId])
   const set = <K extends keyof Task>(k: K, v: Task[K]) => setT((p) => ({ ...p, [k]: v }))
+  const linkedCharge = task?.chargeId ? data.charges.find((charge) => charge.id === task.chargeId) : undefined
+  const billingLocked = !!linkedCharge?.invoiceId
   const save = () => {
     if (!t.title.trim() || !t.clientId) return
-    const final: Task = { ...t, id: t.id || uid('t_'), createdAt: t.createdAt || new Date().toISOString() }
+    const final: Task = {
+      ...t,
+      id: t.id || uid('t_'),
+      title: t.title.trim(),
+      billingDescription: t.billable ? (t.billingDescription?.trim() || t.title.trim()) : undefined,
+      createdAt: t.createdAt || new Date().toISOString(),
+    }
     if (final.status === 'hecho' && !final.doneAt) final.doneAt = new Date().toISOString()
     if (final.status !== 'hecho') delete final.doneAt
     update((d) => {
       const i = d.tasks.findIndex((x) => x.id === final.id)
       if (i >= 0) d.tasks[i] = final
       else d.tasks.push(final)
+      syncTaskCharge(d, final)
     })
     onClose()
   }
@@ -153,7 +184,8 @@ export function TaskModal({ open, onClose, task, clientId }: { open: boolean; on
     <Modal
       open={open}
       onClose={onClose}
-      title={task ? 'Editar pendiente' : 'Nuevo pendiente'}
+      wide
+      title={task ? 'Editar trabajo' : 'Nuevo trabajo'}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
@@ -162,61 +194,82 @@ export function TaskModal({ open, onClose, task, clientId }: { open: boolean; on
       }
     >
       <Field label="Cliente">
-        <Select value={t.clientId} onChange={(e) => set('clientId', e.target.value)}>
+        <Select
+          value={t.clientId}
+          disabled={billingLocked}
+          onChange={(e) => {
+            const client = data.clients.find((item) => item.id === e.target.value)
+            setT((previous) => ({
+              ...previous,
+              clientId: e.target.value,
+              billingUnitPrice: previous.billingUnitPrice || client?.hourRate || data.settings.defaultHourRate,
+            }))
+          }}
+        >
           <option value="">Elegí un cliente…</option>
           {data.clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
       </Field>
-      <Field label="Qué pidió / qué hay que hacer *">
+      <Field label="Qué hay que hacer *">
         <Input autoFocus value={t.title} onChange={(e) => set('title', e.target.value)} placeholder="Nuevo flujo de inicio de sesión" />
       </Field>
       <Field label="Detalle"><Textarea value={t.description} onChange={(e) => set('description', e.target.value)} /></Field>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
+        <Field label="Categoría">
+          <Select value={t.category} disabled={billingLocked} onChange={(e) => set('category', e.target.value as Task['category'])}>
+            {Object.entries(taskCategoryLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </Select>
+        </Field>
         <Field label="Prioridad">
           <Select value={t.priority} onChange={(e) => set('priority', e.target.value as Task['priority'])}>
             <option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option>
           </Select>
         </Field>
         <Field label="Estado">
-          <Select value={t.status} onChange={(e) => set('status', e.target.value as Task['status'])}>
+          <Select value={t.status} disabled={billingLocked} onChange={(e) => set('status', e.target.value as Task['status'])}>
             <option value="pendiente">Pendiente</option><option value="en_curso">En curso</option><option value="hecho">Hecho</option>
           </Select>
         </Field>
         <Field label="Fecha límite"><Input type="date" value={t.dueDate ?? ''} onChange={(e) => set('dueDate', e.target.value || undefined)} /></Field>
       </div>
+      <div className="rounded-xl border border-slate-200 p-4">
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <input type="checkbox" checked={t.billable} disabled={billingLocked} onChange={(e) => set('billable', e.target.checked)} className="accent-brand" />
+          Facturar aparte
+        </label>
+        <p className="mt-1 text-xs text-slate-400">El importe queda previsto ahora y estará disponible para facturar cuando el trabajo pase a Hecho.</p>
+        {billingLocked && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">Este trabajo ya está incluido en una factura. Sus datos económicos están bloqueados.</p>}
+        {t.billable && (
+          <div className="mt-4 space-y-4">
+            <Field label="Descripción en factura">
+              <Input disabled={billingLocked} value={t.billingDescription ?? ''} onChange={(e) => set('billingDescription', e.target.value)} placeholder={t.title || 'Descripción del trabajo'} />
+            </Field>
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="Cantidad / horas"><NumberInput disabled={billingLocked} value={t.billingQuantity ?? 1} onValue={(value) => set('billingQuantity', value)} /></Field>
+              <Field label="Precio unitario"><NumberInput disabled={billingLocked} value={t.billingUnitPrice ?? 0} onValue={(value) => set('billingUnitPrice', value)} /></Field>
+              <Field label="Mes a facturar"><Input disabled={billingLocked} type="month" value={t.billingPeriod ?? currentPeriod()} onChange={(e) => set('billingPeriod', e.target.value)} /></Field>
+            </div>
+            <div className="text-right text-sm text-slate-500">Total previsto: <b className="text-slate-800">{money((t.billingQuantity ?? 1) * (t.billingUnitPrice ?? 0))}</b></div>
+          </div>
+        )}
+      </div>
     </Modal>
   )
 }
 
-/** Marcar un pendiente como hecho y (opcionalmente) cargarlo como trabajo a facturar */
+/** Confirma el trabajo y habilita automáticamente su importe para facturación. */
 export function CompleteTaskModal({ task, onClose }: { task: Task | null; onClose: () => void }) {
   const { data, update } = useStore()
   const client = data.clients.find((c) => c.id === task?.clientId)
-  const [desc, setDesc] = useState('')
-  const [q, setQ] = useState(1)
-  const [price, setPrice] = useState(0)
-  const [period, setPeriod] = useState(currentPeriod())
-  useEffect(() => {
-    if (task) {
-      setDesc(task.title)
-      setQ(1)
-      setPrice(client?.hourRate ?? data.settings.defaultHourRate)
-      setPeriod(currentPeriod())
-    }
-  }, [task, client, data.settings.defaultHourRate])
   if (!task) return null
-  const finish = (bill: boolean) => {
-    const chargeId = bill ? uid('ch_') : undefined
+  const finish = () => {
     const now = new Date().toISOString()
     update((d) => {
       const t = d.tasks.find((x) => x.id === task.id)
       if (!t) return
       t.status = 'hecho'
       t.doneAt = now
-      if (bill && chargeId) {
-        t.chargeId = chargeId
-        d.charges.push({ id: chargeId, clientId: task.clientId, period, date: todayISO(), description: desc, quantity: q, unitPrice: price, kind: 'desarrollo', taskId: task.id, invoiceId: null })
-      }
+      syncTaskCharge(d, t)
     })
     onClose()
   }
@@ -227,19 +280,21 @@ export function CompleteTaskModal({ task, onClose }: { task: Task | null; onClos
       title="Marcar como hecho"
       footer={
         <>
-          <Button variant="ghost" onClick={() => finish(false)}>Solo marcar hecho</Button>
-          <Button variant="primary" onClick={() => finish(true)} disabled={!desc.trim()}>Hecho y cargar para facturar</Button>
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button variant="primary" onClick={finish}>Confirmar como hecho</Button>
         </>
       }
     >
-      <p className="text-sm text-slate-500">¿Se cobra aparte? Cargalo como trabajo de <b>{client?.name}</b> y aparecerá solo en la factura del mes.</p>
-      <Field label="Descripción en factura"><Input value={desc} onChange={(e) => setDesc(e.target.value)} /></Field>
-      <div className="grid grid-cols-3 gap-4">
-        <Field label="Cantidad / horas" hint="Ej: 0,5 = media jornada"><NumberInput value={q} onValue={setQ} /></Field>
-        <Field label="Precio unitario"><NumberInput value={price} onValue={setPrice} /></Field>
-        <Field label="Mes a facturar"><Input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} /></Field>
-      </div>
-      <div className="text-right text-sm text-slate-500">Total: <b className="text-slate-800">{money(lineTotal({ quantity: q, unitPrice: price }))}</b></div>
+      <p className="text-sm text-slate-500"><b>{task.title}</b> se marcará como terminado para {client?.name}.</p>
+      {task.billable ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          <div className="font-medium">Quedará listo para facturar</div>
+          <div className="mt-1">{task.billingDescription || task.title}</div>
+          <div className="mt-2 tabular-nums">{task.billingQuantity ?? 1} × {money(task.billingUnitPrice ?? 0)} = <b>{money((task.billingQuantity ?? 1) * (task.billingUnitPrice ?? 0))}</b></div>
+        </div>
+      ) : (
+        <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Este trabajo no se factura aparte.</p>
+      )}
     </Modal>
   )
 }

@@ -37,7 +37,7 @@ export default function Clients() {
                 <th className="px-5 py-2 text-right font-medium">Mantenimiento</th>
                 <th className="px-5 py-2 text-right font-medium">Gastos fijos</th>
                 <th className="px-5 py-2 text-right font-medium">Total mensual</th>
-                <th className="px-5 py-2 text-center font-medium">Pendientes</th>
+                <th className="px-5 py-2 text-center font-medium">Trabajos abiertos</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

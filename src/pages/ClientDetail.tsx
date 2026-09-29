@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store'
 import { Badge, Button, Card, Empty, PageHeader, confirmAction } from '../components/ui'
 import { ChargeModal, ClientModal, CompleteTaskModal, TaskModal } from '../components/forms'
-import { currentPeriod, fmtDate, invoiceTotal, lineTotal, money, monthlyRecurring, periodLabel, qty } from '../utils'
+import { fmtDate, invoiceTotal, lineTotal, money, monthlyRecurring, periodLabel, qty, taskCategoryLabel } from '../utils'
 import type { Charge, Task } from '../types'
 
 export default function ClientDetail() {
@@ -21,16 +21,21 @@ export default function ClientDetail() {
 
   const tasks = data.tasks.filter((t) => t.clientId === c.id && (showDone || t.status !== 'hecho')).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
   const charges = data.charges.filter((ch) => ch.clientId === c.id).sort((a, b) => b.date.localeCompare(a.date))
-  const unbilled = charges.filter((ch) => !ch.invoiceId)
+  const historicalCharges = charges.filter((charge) => !data.tasks.some((task) => task.id === charge.taskId || task.chargeId === charge.id))
   const invoices = data.invoices.filter((i) => i.clientId === c.id).sort((a, b) => b.number - a.number)
   const due = invoices.filter((i) => i.status === 'emitida').reduce((s, i) => s + invoiceTotal(i), 0)
+  const taskBillingState = (task: Task) => {
+    if (!task.billable) return 'no facturable'
+    const charge = task.chargeId ? charges.find((item) => item.id === task.chargeId) : undefined
+    return charge?.invoiceId ? 'facturado' : charge ? 'sin facturar' : 'previsto'
+  }
 
   const del = () => {
     if (invoices.length) {
       if (confirmAction('Este cliente tiene facturas. ¿Marcarlo como inactivo en lugar de eliminarlo?')) update((d) => { d.clients.find((x) => x.id === c.id)!.active = false })
       return
     }
-    if (!confirmAction(`¿Eliminar ${c.name} con sus pendientes y cargos?`)) return
+    if (!confirmAction(`¿Eliminar ${c.name} con sus trabajos y cargos?`)) return
     update((d) => {
       d.clients = d.clients.filter((x) => x.id !== c.id)
       d.tasks = d.tasks.filter((x) => x.clientId !== c.id)
@@ -70,6 +75,7 @@ export default function ClientDetail() {
             ))}
             <div className="flex justify-between border-t border-slate-100 pt-2 font-semibold text-brand"><span>Total mensual</span><span className="tabular-nums">{money(monthlyRecurring(c))}</span></div>
             <div className="flex justify-between text-xs text-slate-400"><span>Valor hora</span><span>{money(c.hourRate)}</span></div>
+            <div className="flex justify-between text-xs text-slate-400"><span>Próxima factura</span><span>N.º {c.nextInvoiceNumber}</span></div>
             {due > 0 && <div className="flex justify-between text-xs text-accent"><span>Adeuda (facturas emitidas)</span><span>{money(due)}</span></div>}
           </div>
           {c.notes && <div className="whitespace-pre-wrap border-t border-slate-100 px-5 py-3 text-xs text-slate-500">{c.notes}</div>}
@@ -77,16 +83,16 @@ export default function ClientDetail() {
 
         <Card
           className="col-span-2"
-          title="Pendientes"
+          title="Trabajos"
           actions={
             <>
               <label className="flex items-center gap-1.5 text-xs text-slate-400"><input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} className="accent-brand" />Ver hechos</label>
-              <Button size="sm" variant="primary" onClick={() => setTaskModal({ open: true })}>+ Pendiente</Button>
+              <Button size="sm" variant="primary" onClick={() => setTaskModal({ open: true })}>+ Trabajo</Button>
             </>
           }
         >
           {tasks.length === 0 ? (
-            <Empty>Sin pendientes con este cliente.</Empty>
+            <Empty>Sin trabajos con este cliente.</Empty>
           ) : (
             <ul className="divide-y divide-slate-100">
               {tasks.map((t) => (
@@ -100,7 +106,10 @@ export default function ClientDetail() {
                     <div className={`text-sm font-medium ${t.status === 'hecho' ? 'text-slate-400 line-through' : ''}`}>{t.title}</div>
                     {(t.description || t.dueDate) && <div className="truncate text-xs text-slate-400">{t.dueDate && `vence ${fmtDate(t.dueDate)} · `}{t.description}</div>}
                   </button>
-                  {t.chargeId && <Badge value="desarrollo">cargado</Badge>}
+                  <Badge value={t.category}>{taskCategoryLabel[t.category]}</Badge>
+                  <Badge value={taskBillingState(t)}>
+                    {taskBillingState(t) === 'sin facturar' ? 'listo para facturar' : taskBillingState(t)}
+                  </Badge>
                   <Badge value={t.priority} />
                   <Badge value={t.status} />
                 </li>
@@ -110,14 +119,12 @@ export default function ClientDetail() {
         </Card>
       </div>
 
-      <Card className="mt-6" title="Trabajos y gastos extra" actions={<Button size="sm" variant="primary" onClick={() => setChargeModal({ open: true })}>+ Trabajo / gasto</Button>}>
-        {charges.length === 0 ? (
-          <Empty>Sin cargos. Agregá desarrollos a medida o gastos puntuales para sumarlos a la factura del mes.</Empty>
-        ) : (
-          <ChargesTable charges={charges} onEdit={(ch) => setChargeModal({ open: true, charge: ch })} />
-        )}
-        {unbilled.length > 0 && <div className="border-t border-slate-100 px-5 py-2 text-right text-xs text-slate-500">Sin facturar: <b>{money(unbilled.reduce((s, ch) => s + lineTotal(ch), 0))}</b></div>}
-      </Card>
+      {historicalCharges.length > 0 && (
+        <Card className="mt-6" title="Cargos anteriores">
+          <ChargesTable charges={historicalCharges} onEdit={(ch) => setChargeModal({ open: true, charge: ch })} />
+          {historicalCharges.some((ch) => !ch.invoiceId) && <div className="border-t border-slate-100 px-5 py-2 text-right text-xs text-slate-500">Sin facturar: <b>{money(historicalCharges.filter((ch) => !ch.invoiceId).reduce((s, ch) => s + lineTotal(ch), 0))}</b></div>}
+        </Card>
+      )}
 
       <Card className="mt-6" title="Facturas">
         {invoices.length === 0 ? (
@@ -141,7 +148,7 @@ export default function ClientDetail() {
 
       <ClientModal open={editing} onClose={() => setEditing(false)} client={c} />
       <TaskModal open={taskModal.open} task={taskModal.task} clientId={c.id} onClose={() => setTaskModal({ open: false })} />
-      <ChargeModal open={chargeModal.open} charge={chargeModal.charge} clientId={c.id} period={currentPeriod()} onClose={() => setChargeModal({ open: false })} />
+      <ChargeModal open={chargeModal.open} charge={chargeModal.charge} clientId={c.id} onClose={() => setChargeModal({ open: false })} />
       <CompleteTaskModal task={completing} onClose={() => setCompleting(null)} />
     </>
   )

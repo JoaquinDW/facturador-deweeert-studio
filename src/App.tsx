@@ -1,10 +1,9 @@
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { useStore } from './store'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
 import ClientDetail from './pages/ClientDetail'
 import Tasks from './pages/Tasks'
-import Charges from './pages/Charges'
 import Invoices from './pages/Invoices'
 import InvoiceEditor from './pages/InvoiceEditor'
 import InvoiceView from './pages/InvoiceView'
@@ -14,8 +13,7 @@ import { cx } from './components/ui'
 const nav = [
   { to: '/', label: 'Panel', icon: 'M3 12l9-9 9 9M5 10v10h14V10' },
   { to: '/clientes', label: 'Clientes', icon: 'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21a8 8 0 0116 0' },
-  { to: '/pendientes', label: 'Pendientes', icon: 'M9 11l3 3 8-8M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2h9' },
-  { to: '/cargos', label: 'Trabajos y gastos', icon: 'M12 8v8M8 12h8M4 4h16v16H4z' },
+  { to: '/trabajos', label: 'Trabajos', icon: 'M9 11l3 3 8-8M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2h9' },
   { to: '/facturas', label: 'Facturas', icon: 'M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6' },
   { to: '/ajustes', label: 'Ajustes', icon: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-2.9 1.2V21a2 2 0 11-4 0v-.1A1.7 1.7 0 009 19.4a1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.7 1.7 0 003 14H3a2 2 0 110-4h.1A1.7 1.7 0 004.6 9a1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1A1.7 1.7 0 009 4.6V4a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V10a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z' },
 ]
@@ -63,7 +61,7 @@ export default function App() {
                 <path d={n.icon} />
               </svg>
               <span className="flex-1">{n.label}</span>
-              {n.to === '/pendientes' && openTasks > 0 && <span className="rounded-full bg-accent px-1.5 text-xs font-semibold">{openTasks}</span>}
+              {n.to === '/trabajos' && openTasks > 0 && <span className="rounded-full bg-accent px-1.5 text-xs font-semibold">{openTasks}</span>}
             </NavLink>
           ))}
         </nav>
@@ -77,8 +75,9 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/clientes" element={<Clients />} />
             <Route path="/clientes/:id" element={<ClientDetail />} />
-            <Route path="/pendientes" element={<Tasks />} />
-            <Route path="/cargos" element={<Charges />} />
+            <Route path="/trabajos" element={<Tasks />} />
+            <Route path="/pendientes" element={<Navigate to="/trabajos" replace />} />
+            <Route path="/cargos" element={<Navigate to="/trabajos" replace />} />
             <Route path="/facturas" element={<Invoices />} />
             <Route path="/facturas/nueva" element={<InvoiceEditor />} />
             <Route path="/facturas/:id" element={<InvoiceView />} />

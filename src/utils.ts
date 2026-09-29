@@ -1,4 +1,4 @@
-import type { Client, Data, Invoice, InvoiceItem } from './types'
+import type { ChargeKind, Client, Data, Invoice, InvoiceItem, Task, TaskCategory } from './types'
 
 export const uid = (prefix = '') =>
   prefix + (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)).slice(0, 12)
@@ -14,6 +14,12 @@ export const todayISO = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 export const currentPeriod = () => todayISO().slice(0, 7)
+export const taskCategoryLabel: Record<TaskCategory, string> = {
+  desarrollo: 'Desarrollo',
+  gestion: 'Gestión / comunicación',
+  gasto: 'Gasto',
+  otro: 'Otro',
+}
 export const periodLabel = (p: string) => {
   const [y, m] = p.split('-').map(Number)
   return `${MONTHS[m - 1]} ${y}`
@@ -59,6 +65,39 @@ export function suggestedItems(data: Data, client: Client, period: string): Invo
 
 export const invoiceFileName = (inv: Invoice) =>
   `Factura ${inv.client.name} - ${periodLabel(inv.period).split(' ')[0]} ${inv.period.slice(0, 4)} N${inv.number}.pdf`
+
+const chargeKindForCategory = (category: TaskCategory): ChargeKind =>
+  category === 'desarrollo' ? 'desarrollo' : category === 'gasto' ? 'gasto' : 'otro'
+
+/** Mantiene el cargo facturable asociado al ciclo de vida de un trabajo. */
+export function syncTaskCharge(data: Data, task: Task) {
+  const charge = task.chargeId ? data.charges.find((item) => item.id === task.chargeId) : undefined
+  if (charge?.invoiceId) return
+
+  if (task.status !== 'hecho' || !task.billable) {
+    if (charge) data.charges = data.charges.filter((item) => item.id !== charge.id)
+    delete task.chargeId
+    return
+  }
+
+  const values = {
+    clientId: task.clientId,
+    period: task.billingPeriod ?? currentPeriod(),
+    date: task.doneAt?.slice(0, 10) ?? todayISO(),
+    description: task.billingDescription?.trim() || task.title,
+    quantity: task.billingQuantity ?? 1,
+    unitPrice: task.billingUnitPrice ?? 0,
+    kind: chargeKindForCategory(task.category),
+    taskId: task.id,
+    invoiceId: null,
+  }
+  if (charge) Object.assign(charge, values)
+  else {
+    const id = uid('ch_')
+    data.charges.push({ id, ...values })
+    task.chargeId = id
+  }
+}
 
 export const parseNum = (v: string) => {
   // acepta "0,5", "48.275,00", "48275.5"

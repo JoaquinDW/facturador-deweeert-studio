@@ -4,7 +4,6 @@ export interface Settings {
   studioName: string
   studioLocation: string
   payTo: string
-  nextInvoiceNumber: number
   defaultHourRate: number
   /** Texto opcional (CBU/alias) que se imprime en la factura */
   paymentInfo: string
@@ -32,6 +31,7 @@ export interface Client {
   maintenanceDescription: string
   maintenanceAmount: number
   hourRate: number
+  nextInvoiceNumber: number
   /** Gastos fijos que se re-facturan todos los meses (Supabase, Resend, hosting...) */
   recurring: RecurringItem[]
   notes: string
@@ -40,14 +40,21 @@ export interface Client {
 
 export type TaskStatus = 'pendiente' | 'en_curso' | 'hecho'
 export type Priority = 'baja' | 'media' | 'alta'
+export type TaskCategory = 'desarrollo' | 'gestion' | 'gasto' | 'otro'
 
 export interface Task {
   id: ID
   clientId: ID
   title: string
   description: string
+  category: TaskCategory
   status: TaskStatus
   priority: Priority
+  billable: boolean
+  billingDescription?: string
+  billingQuantity?: number
+  billingUnitPrice?: number
+  billingPeriod?: string
   dueDate?: string
   createdAt: string
   doneAt?: string

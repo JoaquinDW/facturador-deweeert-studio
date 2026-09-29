@@ -2,3 +2,7 @@ node_modules
 dist
 data/data.json
 data/backups
+.neon
+.env.local
+.vercel
+.env*

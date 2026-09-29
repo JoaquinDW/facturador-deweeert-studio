@@ -18,7 +18,11 @@ export default function Invoices() {
 
   return (
     <>
-      <PageHeader title="Facturas" subtitle={`Próximo número: ${data.settings.nextInvoiceNumber}`} actions={<Button variant="primary" onClick={() => nav('/facturas/nueva')}>+ Nueva factura</Button>} />
+      <PageHeader
+        title="Facturas"
+        subtitle={client ? `Próximo número: ${data.clients.find((c) => c.id === client)?.nextInvoiceNumber}` : 'Numeración independiente por cliente'}
+        actions={<Button variant="primary" onClick={() => nav('/facturas/nueva')}>+ Nueva factura</Button>}
+      />
       <div className="mb-4 flex items-center gap-3">
         <Select className="max-w-56" value={client} onChange={(e) => setClient(e.target.value)}>
           <option value="">Todos los clientes</option>

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { Badge, Button, Card, Empty, PageHeader, Stat } from '../components/ui'
 import { CompleteTaskModal, TaskModal } from '../components/forms'
-import { currentPeriod, fmtDate, invoiceTotal, lineTotal, money, monthlyRecurring, periodLabel, shiftPeriod } from '../utils'
+import { currentPeriod, fmtDate, invoiceTotal, lineTotal, money, monthlyRecurring, periodLabel, shiftPeriod, taskCategoryLabel } from '../utils'
 import type { Task } from '../types'
 
 export function PeriodPicker({ value, onChange }: { value: string; onChange: (p: string) => void }) {
@@ -45,10 +45,10 @@ export default function Dashboard() {
     <>
       <PageHeader
         title="Panel"
-        subtitle="Resumen de facturación y pendientes"
+        subtitle="Resumen de facturación y trabajos"
         actions={
           <>
-            <Button onClick={() => setNewTask(true)}>+ Pendiente</Button>
+            <Button onClick={() => setNewTask(true)}>+ Trabajo</Button>
             <Button variant="primary" onClick={() => nav(`/facturas/nueva?periodo=${period}`)}>+ Factura</Button>
           </>
         }
@@ -58,7 +58,7 @@ export default function Dashboard() {
         <Stat label="Recurrente mensual" value={money(mrr)} sub={`${active.filter((c) => c.maintenanceActive).length} clientes con mantenimiento`} />
         <Stat label={`Facturado ${periodLabel(period)}`} value={money(billed)} sub={`${periodInvoices.length} de ${active.length} clientes`} />
         <Stat label="Por cobrar" value={money(unpaidTotal)} sub={`${unpaid.length} facturas emitidas`} tone="accent" />
-        <Stat label="Pendientes abiertos" value={open.length} sub={`${open.filter((t) => t.priority === 'alta').length} de prioridad alta`} />
+        <Stat label="Trabajos abiertos" value={open.length} sub={`${open.filter((t) => t.priority === 'alta').length} de prioridad alta`} />
       </div>
 
       <Card
@@ -105,9 +105,9 @@ export default function Dashboard() {
         )}
       </Card>
 
-      <Card className="mt-6" title="Pendientes abiertos" actions={<Link to="/pendientes" className="text-xs text-brand hover:underline">Ver todos →</Link>}>
+      <Card className="mt-6" title="Trabajos abiertos" actions={<Link to="/trabajos" className="text-xs text-brand hover:underline">Ver todos →</Link>}>
         {open.length === 0 ? (
-          <Empty>Nada pendiente 🎉</Empty>
+          <Empty>No hay trabajos abiertos.</Empty>
         ) : (
           <ul className="divide-y divide-slate-100">
             {open.slice(0, 8).map((t) => {
@@ -118,7 +118,7 @@ export default function Dashboard() {
                   <button title="Marcar hecho" onClick={() => setCompleting(t)} className="h-5 w-5 shrink-0 cursor-pointer rounded-full border-2 border-slate-300 hover:border-emerald-500 hover:bg-emerald-50" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{t.title}</div>
-                    <div className="text-xs text-slate-400">{c?.name}{t.dueDate && <span className={overdue ? 'text-red-500' : ''}> · vence {fmtDate(t.dueDate)}</span>}</div>
+                    <div className="text-xs text-slate-400">{c?.name} · {taskCategoryLabel[t.category]}{t.dueDate && <span className={overdue ? 'text-red-500' : ''}> · vence {fmtDate(t.dueDate)}</span>}</div>
                   </div>
                   <Badge value={t.priority} />
                   <Badge value={t.status} />

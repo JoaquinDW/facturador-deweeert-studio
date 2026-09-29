@@ -31,7 +31,8 @@ export default function InvoiceView() {
     update((d) => {
       d.invoices = d.invoices.filter((x) => x.id !== inv.id)
       d.charges.forEach((ch) => { if (ch.invoiceId === inv.id) ch.invoiceId = null })
-      if (d.settings.nextInvoiceNumber === inv.number + 1) d.settings.nextInvoiceNumber = inv.number
+      const client = d.clients.find((c) => c.id === inv.clientId)
+      if (client?.nextInvoiceNumber === inv.number + 1) client.nextInvoiceNumber = inv.number
     })
     nav('/facturas')
   }

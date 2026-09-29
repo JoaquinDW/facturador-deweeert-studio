@@ -83,12 +83,15 @@ const badgeColors: Record<string, string> = {
   media: 'bg-slate-50 text-slate-600 ring-slate-200',
   baja: 'bg-slate-50 text-slate-400 ring-slate-200',
   desarrollo: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
+  gestion: 'bg-sky-50 text-sky-700 ring-sky-200',
   gasto: 'bg-orange-50 text-orange-700 ring-orange-200',
   otro: 'bg-slate-50 text-slate-600 ring-slate-200',
   facturado: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   'sin facturar': 'bg-amber-50 text-amber-700 ring-amber-200',
+  previsto: 'bg-violet-50 text-violet-700 ring-violet-200',
+  'no facturable': 'bg-slate-50 text-slate-500 ring-slate-200',
 }
-const badgeLabels: Record<string, string> = { en_curso: 'en curso' }
+const badgeLabels: Record<string, string> = { en_curso: 'en curso', gestion: 'gestión / comunicación' }
 export function Badge({ value, children }: { value: string; children?: ReactNode }) {
   return (
     <span className={cx('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset', badgeColors[value] ?? badgeColors.otro)}>

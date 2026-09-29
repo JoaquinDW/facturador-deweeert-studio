@@ -4,7 +4,6 @@
     "studioName": "De Weert Studio",
     "studioLocation": "Corrientes, Corrientes",
     "payTo": "Balthasar De Weert",
-    "nextInvoiceNumber": 6,
     "defaultHourRate": 20000,
     "paymentInfo": ""
   },
@@ -21,6 +20,7 @@
       "maintenanceDescription": "Mantenimiento Gonzamasmotos.com",
       "maintenanceAmount": 50000,
       "hourRate": 20000,
+      "nextInvoiceNumber": 6,
       "recurring": [
         { "id": "r_gm_db", "description": "Base de datos Plan Pro", "quantity": 1, "unitPrice": 48275, "active": true },
         { "id": "r_gm_mail", "description": "Proveedor de mail", "quantity": 1, "unitPrice": 28800, "active": true }
